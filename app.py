@@ -5,7 +5,7 @@ import sqlite3
 app = Flask(__name__)
 app.secret_key = "Hola-amigo$DollarSignOneTime"
 
-# DATABASE SETUP
+# DATABASE SETUP Using sqlite3
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
