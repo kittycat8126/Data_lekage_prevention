@@ -7,41 +7,48 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Data Leak Prevention System</h1>
+    <h1>🔐 Data Leak Prevention System</h1>
 
     {% if session.username %}
         <p>Welcome, <strong>{{ session.username }}</strong> ({{ session.role }})</p>
         <a href="{{ url_for('logout') }}">Logout</a>
+        | <a href="{{ url_for('upload') }}">Upload File</a>
         {% if session.role == 'admin' %}
             | <a href="{{ url_for('admin') }}">Admin Panel</a>
         {% endif %}
+    {% else %}
+        <a href="{{ url_for('login') }}">Login</a> | <a href="{{ url_for('register') }}">Register</a>
     {% endif %}
+
+    <hr>
 
     <form method="post">
         <label>Email:</label><br>
         <input type="email" name="email" required><br><br>
         
         <label>Phone Number:</label><br>
-        <input type="text" name="phone"><br><br>  <!-- FIXED NAME -->
+        <input type="text" name="phone"><br><br>
 
         <input type="submit" value="Check now">
     </form>
 
+    <hr>
+
     {% if email %}
-        <h3>Request for Email: {{ email }}</h3>
+        <h3>Results for Email: <span style="color:blue;">{{ email }}</span></h3>
         {% if email_leaked %}
             <p style="color:red;">⚠️ Leaked in: {{ email_breaches | join(', ') }}</p>
         {% else %}
-            <p style="color:green;">✅ No leak detected</p>
+            <p style="color:green;">✅ No email leaks detected</p>
         {% endif %}
     {% endif %}
 
     {% if phone %}
-        <h3>Results for Phone: {{ phone }}</h3>
+        <h3>Results for Phone: <span style="color:blue;">{{ phone }}</span></h3>
         {% if phone_leaked %}
             <p style="color:red;">⚠️ Leaked in: {{ phone_breaches | join(', ') }}</p>
         {% else %}
-            <p style="color:green;">✅ No leak detected</p>
+            <p style="color:green;">✅ No phone leaks detected</p>
         {% endif %}
     {% endif %}
 </body>

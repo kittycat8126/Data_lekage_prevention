@@ -1,0 +1,128 @@
+/* Base settings */
+body {
+    background-color: #121212;
+    color: #eaeaea;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    padding: 40px;
+    animation: fadeIn 0.8s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+h2 {
+    color: #cdb4db; /* muted violet */
+    margin-bottom: 20px;
+}
+
+/* General links */
+a {
+    color: #bb86fc;
+    margin: 0 10px;
+    text-decoration: none;
+    transition: 0.3s ease;
+}
+
+a:hover {
+    color: #ffffff;
+    text-shadow: 0 0 6px #bb86fc;
+}
+
+/* Admin nav */
+.admin-nav {
+    margin-bottom: 30px;
+}
+
+.nav-btn {
+    display: inline-block;
+    margin: 0 8px;
+    padding: 10px 22px;
+    text-decoration: none;
+    color: #fff;
+    background-color: #4b3a78; /* royal plum */
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 0 10px rgba(203, 177, 255, 0.1);
+}
+
+.nav-btn:hover {
+    background-color: #654ea3;
+    box-shadow: 0 0 12px rgba(203, 177, 255, 0.3);
+}
+
+.logout-btn {
+    background-color: #c44545;
+}
+
+.logout-btn:hover {
+    background-color: #a63232;
+    box-shadow: 0 0 8px rgba(255, 75, 75, 0.3);
+}
+
+.view-files-btn {
+    background-color: #3b5998;
+}
+
+.view-files-btn:hover {
+    background-color: #4c70ba;
+    box-shadow: 0 0 8px rgba(112, 157, 255, 0.3);
+}
+
+/* Table Styling */
+table {
+    width: 90%;
+    margin: auto;
+    background-color: #1e1e1e;
+    border-collapse: collapse;
+    border: 1px solid #836fff;
+    box-shadow: 0 0 10px rgba(131, 111, 255, 0.3);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 12px;
+    border: 1px solid #5e4d9b;
+    text-align: center;
+}
+
+th {
+    background-color: #836fff;
+    color: #121212;
+    font-weight: bold;
+}
+
+td {
+    color: #eaeaea;
+}
+
+/* Form Elements */
+select, input[type="submit"] {
+    padding: 5px 10px;
+    border-radius: 65px;
+    border: none;
+    font-weight: 600;
+    font-family: inherit;
+}
+
+select {
+    background-color: #292929;
+    color: #fff;
+}
+
+input[type="submit"] {
+    background-color: #8f71ff;
+    color: black;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+input[type="submit"]:hover {
+    background-color: #a58bff;
+    box-shadow: 0 0 10px #cbb2ff;
+    transform: scale(1.05);
+}

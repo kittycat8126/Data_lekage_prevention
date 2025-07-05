@@ -1,11 +1,33 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
+from functools import wraps
+import os
+from werkzeug.utils import secure_filename
+from functools import wraps
+from flask import flash, get_flashed_messages
 
 app = Flask(__name__)
 app.secret_key = "Hola-amigo$DollarSignOneTime"
 
-# DATABASE SETUP Using sqlite3
+#Access control matrix 
+ACM = {
+    "user":  {"view": True, "upload": True,  "admin": False},
+    "admin": {"view": True, "upload": True,  "admin": True}
+}
+
+# --- Upload folder config ---
+UPLOAD_FOLDER = os.path.join('static','uploads')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+
+# to prevent malicious file exicution on site
+ALLOWED_EXTENSIONS = {"txt", "pdf", "docx"}
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# DATABASE SETUP
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -23,7 +45,48 @@ def init_db():
 
 init_db()
 
-#admin -route
+# 🔐 Permission control (boolean-style)
+def permission_required(permission):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            role = session.get("role")
+            if not role or not ACM.get(role, {}).get(permission, False):
+                return "⛔ Access Denied: You don't have permission for this action.", 403
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+# --- Upload route ---
+@app.route("/upload", methods=["GET", "POST"])
+@permission_required("upload")
+def upload():
+    if request.method == "POST":
+        if "file" not in request.files:
+            flash("⚠️ No file part in the form", "error")
+            return redirect(url_for("upload"))
+
+        file = request.files["file"]
+        if file.filename == "":
+            flash("⚠️ No selected file", "error")
+            return redirect(url_for("upload"))
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            flash(f"✅ File {filename} uploaded successfully!", "success")
+            return redirect(url_for("upload"))
+        else:
+            flash("⛔ File type not allowed", "error")
+            return redirect(url_for("upload"))
+
+    return render_template("upload.html")
+
+
+
+#admin route
 @app.route("/admin")
 def admin():
     if "role" not in session or session["role"] != "admin":
@@ -35,9 +98,17 @@ def admin():
     users = c.fetchall()
     conn.close()
 
-    return render_template("admin.html", users=users)
+    # Get uploaded files
+    files = os.listdir(app.config["UPLOAD_FOLDER"])
 
+    return render_template("admin.html", users=users, files=files)
 
+#----admin route to access uploaded files
+@app.route("/admin/files")
+@permission_required("upload")  # or use "view_files" if you separate permissions
+def view_uploaded_files():
+    files = os.listdir(app.config['UPLOAD_FOLDER'])
+    return render_template("uploadedfiles.html", files=files)
 
 # register route
 @app.route("/register", methods=["GET", "POST"])
@@ -93,6 +164,15 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+#--app route for files
+@app.route("/files")
+@permission_required("view_files")  # OR restrict manually to admins
+def view_files():
+    if session.get("role") != "admin":
+        return "Access denied", 403
+
+    files = os.listdir(app.config['UPLOAD_FOLDER'])
+    return render_template("files.html", files=files)
 
 
 # --- Breach Check Function ---

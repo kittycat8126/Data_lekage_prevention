@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Uploaded Files</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='uploadedfiles.css') }}">
+</head>
+<body>
+    <div class="dialog-box">
+        <h2>📂 All Uploaded Files</h2>
+        <a href="{{ url_for('admin') }}" class="back-btn">← Back to Admin Panel</a>
+
+        <ul class="file-list">
+            {% for file in files %}
+                <li><a href="{{ url_for('static', filename='uploads/' + file) }}" target="_blank">{{ file }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
