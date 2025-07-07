@@ -6,9 +6,58 @@ import os
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask import flash, get_flashed_messages
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from itsdangerous import URLSafeTimedSerializer
+
+
+EMAIL_SENDER = "dlpfromvinay@gmail.com"
+EMAIL_PASSWORD = "ukdb bprx zyop zvgv"  # use Gmail App Password
 
 app = Flask(__name__)
 app.secret_key = "Hola-amigo$DollarSignOneTime"
+
+
+#token - generator
+def generate_reset_token(email):
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    return serializer.dumps(email, salt='password-reset-salt')
+
+
+# token verification 
+def verify_reset_token(token, expiration=3600):  # 1 hour expiry
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    try:
+        email = serializer.loads(token, salt='password-reset-salt', max_age=expiration)
+    except:
+        return None
+    return email
+
+
+# password reset mail sender 
+def send_reset_email(email, token):
+    reset_link = url_for('reset_password', token=token, _external=True)
+    subject = "Reset Your Password"
+    body = f"Click the link to reset your password: {reset_link}"
+
+    import smtplib
+    from email.mime.text import MIMEText
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = 'your_email@gmail.com'
+    msg['To'] = email
+
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.login('your_email@gmail.com', 'your_app_password')
+    server.send_message(msg)
+    server.quit()
+
+
+
+
+
 
 #Access control matrix 
 ACM = {
@@ -102,6 +151,38 @@ def admin():
     files = os.listdir(app.config["UPLOAD_FOLDER"])
 
     return render_template("admin.html", users=users, files=files)
+
+
+#forgot password route 
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        token = generate_reset_token(email)
+        send_reset_email(email, token)
+        return "Reset link sent!"
+    return render_template('forgot_password.html')
+
+
+#reset password token route
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    email = verify_reset_token(token)
+    if not email:
+        return "Invalid or expired token."
+
+    if request.method == 'POST':
+        new_password = request.form['password']
+        conn = sqlite3.connect('users.db')
+        c = conn.cursor()
+        c.execute("UPDATE users SET password = ? WHERE email = ?", (new_password, email))
+        conn.commit()
+        conn.close()
+        return "Password reset successfully."
+
+    return render_template('reset_password.html', token=token)
+
+
 
 #----admin route to access uploaded files
 @app.route("/admin/files")
@@ -233,6 +314,140 @@ def index():
 
     return render_template("index.html")
 
+#role -update route
+@app.route("/update_role", methods=["POST"])
+@permission_required("admin")
+def update_role():
+    user_id = request.form["user_id"]
+    new_role = request.form["new_role"]
+    admin_password = request.form["admin_password"]
+
+    admin_id = session.get("user_id")
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    
+    # Get current admin password hash
+    c.execute("SELECT password, username FROM users WHERE id = ?", (admin_id,))
+    admin_data = c.fetchone()
+    if not admin_data:
+        flash("⛔ Admin not found.", "error")
+        return redirect(url_for("admin"))
+
+    admin_pass_hash, admin_username = admin_data
+
+    if not check_password_hash(admin_pass_hash, admin_password):
+        flash("⛔ Incorrect admin password.", "error")
+        return redirect(url_for("admin"))
+
+    # Get target user info (email, old role, username)
+    c.execute("SELECT email, role, username FROM users WHERE id = ?", (user_id,))
+    target_data = c.fetchone()
+    if not target_data:
+        flash("⛔ Target user not found.", "error")
+        return redirect(url_for("admin"))
+
+    target_email, old_role, target_username = target_data
+
+    # ✅ Send email before updating
+    send_role_change_email(
+        to_email=target_email,
+        username=target_username,
+        old_role=old_role,
+        new_role=new_role,
+        changed_by=admin_username
+    )
+
+    # Update role in DB
+    c.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
+    conn.commit()
+    conn.close()
+
+    flash("✅ User role updated & email sent.", "success")
+    return redirect(url_for("admin"))
+
+
+    # Update role
+    c.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
+    conn.commit()
+    conn.close()
+
+    flash("✅ User role updated successfully.", "success")
+    return redirect(url_for("admin"))
+
+
+# delete control for admin (to other users)
+@app.route("/delete_user/<int:user_id>", methods=["POST"])
+@permission_required("admin")
+def delete_user(user_id):
+    # Prevent admin from deleting themselves
+    if session.get("user_id") == user_id:
+        flash("⛔ You can't delete your own account.", "error")
+        return redirect(url_for("admin"))
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+    flash("✅ User account deleted successfully.", "success")
+    return redirect(url_for("admin"))
+
+
+#file- delete control for admin
+@app.route("/delete_file/<filename>", methods=["POST"])
+@permission_required("admin")
+def delete_file(filename):
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        flash(f"🗑️ File '{filename}' deleted successfully.", "success")
+    else:
+        flash(f"⚠️ File '{filename}' not found.", "error")
+
+    return redirect(url_for("view_uploaded_files"))
+
+
+
+#e-mail sender
+def send_role_change_email(to_email, username, old_role, new_role, changed_by):
+    subject = "🔔 Your Account Role Has Changed"
+    body = f"""
+    Hello {username},
+
+    Your role has been changed on the DLP platform.
+
+    📌 Old Role: {old_role}
+    ✅ New Role: {new_role}
+    👤 Changed By: {changed_by}
+
+    If this wasn’t expected, please contact support immediately.
+
+    Regards,
+    DLP Security Team
+    """
+
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_SENDER
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            server.send_message(msg)
+        print(f"[EMAIL] Role change email sent to {to_email}")
+    except Exception as e:
+        print(f"[ERROR] Failed to send email: {e}")
+
+
+
+
+
 # --- App Runner ---
 if __name__ == "__main__":
     app.run(debug=True)
+
+#tress dont hang around with the grass even though they start with place

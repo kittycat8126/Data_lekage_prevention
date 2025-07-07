@@ -6,15 +6,32 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='uploadedfiles.css') }}">
 </head>
 <body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flashes">
+            {% for category, message in messages %}
+                <li class="flash {{ category }}">{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
     <div class="dialog-box">
         <h2>📂 All Uploaded Files</h2>
         <a href="{{ url_for('admin') }}" class="back-btn">← Back to Admin Panel</a>
 
-        <ul class="file-list">
+        <ul>
             {% for file in files %}
-                <li><a href="{{ url_for('static', filename='uploads/' + file) }}" target="_blank">{{ file }}</a></li>
+                <li style="display: flex; align-items: center; justify-content: space-between; width: 500px; margin-bottom: 10px;">
+                <span>{{ file }}</span>
+                <form method="POST" action="/delete_file/{{ file }}" onsubmit="return confirm('Are you sure you want to delete this file?');">
+                    <button type="submit" style="color: white; background-color: red; border: none; border-radius: 5px; padding: 5px 10px;">Delete</button>
+                </form>
+                </li>
             {% endfor %}
         </ul>
+
+
     </div>
 </body>
 </html>

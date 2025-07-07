@@ -10,7 +10,11 @@
 
     <p>Welcome, <strong>{{ session.username }}</strong> ({{ session.role }})</p>
     <a href="{{ url_for('index') }}">← Back to Home</a> |
-    <a href="{{ url_for('logout') }}">Logout</a><br>
+    <a href="{{ url_for('logout') }}">Logout</a>
+    {% if session.role == 'admin' %}
+        | <a href="{{ url_for('view_uploaded_files') }}">View Uploaded Files</a>
+    {% endif %}
+    <br>
 
     <form method="POST" enctype="multipart/form-data">
         <label for="file">Choose a file (txt, pdf, docx only):</label><br><br>
@@ -28,9 +32,7 @@
     {% endwith %}
 
     
-    {% if session.role == 'admin' %}
-        | <a href="{{ url_for('view_files') }}">View Uploaded Files</a>
-    {% endif %}
+    
 
     <p style="margin-top: 20px; color: #999;">Allowed formats: <code>.txt</code>, <code>.pdf</code>, <code>.docx</code></p>
 </body>
